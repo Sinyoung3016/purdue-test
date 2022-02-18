@@ -4564,11 +4564,6 @@
   "resolved" "https://registry.npmjs.org/jsesc/-/jsesc-2.5.2.tgz"
   "version" "2.5.2"
 
-"jsesc@^3.0.2":
-  "integrity" "sha512-xKqzzWXDttJuOcawBt4KnKHHIf5oQ/Cxax+0PWFG+DFDgHNAdi+TXECADI+RYiFUMmx8792xsMbbgXj4CwnP4g=="
-  "resolved" "https://registry.npmjs.org/jsesc/-/jsesc-3.0.2.tgz"
-  "version" "3.0.2"
-
 "jsesc@~0.5.0":
   "integrity" "sha1-597mbjXW/Bb3EP6R1c9p9w8IkR0="
   "resolved" "https://registry.npmjs.org/jsesc/-/jsesc-0.5.0.tgz"
@@ -5700,11 +5695,6 @@
   "resolved" "https://registry.npmjs.org/react-is/-/react-is-16.13.1.tgz"
   "version" "16.13.1"
 
-"react-native-base64@^0.2.1":
-  "integrity" "sha512-eHgt/MA8y5ZF0aHfZ1aTPcIkDWxza9AaEk4GcpIX+ZYfZ04RcaNahO+527KR7J44/mD3efYfM23O2C1N44ByWA=="
-  "resolved" "https://registry.npmjs.org/react-native-base64/-/react-native-base64-0.2.1.tgz"
-  "version" "0.2.1"
-
 "react-native-ble-plx@^2.0.3":
   "integrity" "sha512-62LRDBPf/03K7sge+qq2ZuF8PWCGB782G+SBrpgNm5fA5Hs3FCY1ExTJZ1G0tB5ZhBPYEXcKRxPLuFegcDFrqA=="
   "resolved" "https://registry.npmjs.org/react-native-ble-plx/-/react-native-ble-plx-2.0.3.tgz"
@@ -5719,10 +5709,20 @@
     "jscodeshift" "^0.11.0"
     "nullthrows" "^1.1.1"
 
-"react-native@*", "react-native@0.67.0":
-  "integrity" "sha512-LTrLbZhapgsF0J1fgKvkMVealNKVZ+Fp3XWVFHWmglVQvdmALdcafZR2Plvhe9IH8KJddj3LAU9nV3rHot7q4Q=="
-  "resolved" "https://registry.npmjs.org/react-native/-/react-native-0.67.0.tgz"
-  "version" "0.67.0"
+"react-native-sound-level@^1.1.5":
+  "integrity" "sha512-H4dVYbif/PfzMOp9IpNjJUtbODYXeHk8tI0d9mWcJcBEB/ITcP4jSvDtAOH8B/Vcu4h4Owrvsuz/Y+UfS0biuw=="
+  "resolved" "https://registry.npmjs.org/react-native-sound-level/-/react-native-sound-level-1.1.5.tgz"
+  "version" "1.1.5"
+
+"react-native-sound-player@^0.11.3":
+  "integrity" "sha512-UROQGIPkb4vk5hk3cycup1YEgVmQtnT1VA+j3RMJmohBuFXIXauVob1sGsW9+rUOfRnMVXxv2FpDJU1Yet4IlA=="
+  "resolved" "https://registry.npmjs.org/react-native-sound-player/-/react-native-sound-player-0.11.3.tgz"
+  "version" "0.11.3"
+
+"react-native@*", "react-native@0.67.2":
+  "integrity" "sha512-grEtpOLLvtSg8Bivg0ffVRCjTkresqMt7Jdog/geF6VAYhb4RnLaaUCWvyrfyB9buf135FKnqg5BIuve/XQNXA=="
+  "resolved" "https://registry.npmjs.org/react-native/-/react-native-0.67.2.tgz"
+  "version" "0.67.2"
   dependencies:
     "@jest/create-cache-key-function" "^27.0.1"
     "@react-native-community/cli" "^6.0.0"

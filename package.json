@@ -11,11 +11,11 @@
   },
   "dependencies": {
     "axios": "^0.25.0",
-    "jsesc": "^3.0.2",
     "react": "17.0.2",
-    "react-native": "0.67.0",
-    "react-native-base64": "^0.2.1",
-    "react-native-ble-plx": "^2.0.3"
+    "react-native": "0.67.2",
+    "react-native-ble-plx": "^2.0.3",
+    "react-native-sound-level": "^1.1.5",
+    "react-native-sound-player": "^0.11.3"
   },
   "devDependencies": {
     "@babel/core": "^7.16.10",
