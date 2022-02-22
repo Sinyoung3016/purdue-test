@@ -12,18 +12,21 @@ let vibeChar = null;
 
 let hr = '0';
 let sp02 = '0';
+let startTime = null;
 
 let drowsyStatus = false;
 let sleepSec = 0;
-let audioName = 'good';
+let audioName = 'wakeup';
 let ing = false;
 
-const urlDemo = 'https://demo.thingsboard.io/api/v1/5HQeXnFXZ3IbSCXO3EyM/rpc';
+//const serverUrl = 'https://demo.thingsboard.io/api/v1/5HQeXnFXZ3IbSCXO3EyM/rpc';
+const serverUrl = 'http://192.168.2.208:8080/api/v1/UXdKE72SZUOxvFinh9c0/rpc';
 
 const manager = new BleManager();
 
 export default function App() {
   const [rec, setRec] = useState(false);
+  const [ready, setReady] = useState(false);
   const [reload, setReload] = useState(false);
 
   const decodeBleString = value => {
@@ -43,7 +46,7 @@ export default function App() {
   async function isDrowsy(hr, sp02) {
     //return true/false
     await axios({
-      url: urlDemo,
+      url: serverUrl,
       method: 'post',
       header: {'Content-Type': 'application/json'},
       data: {method: 'isDrowsy', params: [hr, sp02]},
@@ -56,7 +59,7 @@ export default function App() {
   async function genRandSec() {
     //return sec
     await axios({
-      url: urlDemo,
+      url: serverUrl,
       method: 'post',
       header: {'Content-Type': 'application/json'},
       data: {method: 'genRandSec', params: {}},
@@ -67,13 +70,14 @@ export default function App() {
     });
   }
 
+  //변수순서 바꾸기 필수
   async function isResponseFast(time, hr, sp02) {
     //return string=filename
     await axios({
-      url: urlDemo,
+      url: serverUrl,
       method: 'post',
       header: {'Content-Type': 'application/json'},
-      data: {method: 'isResponseFast', params: [time, hr, sp02]},
+      data: {method: 'isResponseFast', params: [hr, sp02, time]},
     }).then(response => {
       audioName = response.data;
       console.log('4. GAME : response isResponseFast :', audioName);
@@ -88,7 +92,7 @@ export default function App() {
 
   useEffect(() => {
     if (reload) {
-      console.log('start');
+      //console.log('start');
       const subscription = manager.onStateChange(state => {
         if (state === 'PoweredOn') {
           manager.startDeviceScan(null, null, async (error, device) => {
@@ -96,7 +100,7 @@ export default function App() {
               console.log('error', error);
               return;
             }
-            if (device.name === 'TestBLE') {
+            if (device.name === 'CroffleBLE') {
               console.log('detected');
               manager.stopDeviceScan();
 
@@ -111,6 +115,7 @@ export default function App() {
               vibeChar = char[1];
 
               await bioChar.read();
+              setReady(true);
 
               bioChar.monitor((err, bio) => {
                 if (err) {
@@ -121,7 +126,6 @@ export default function App() {
                 const bioData = decodeBleString(bio.value).split(':');
                 hr = bioData[0];
                 sp02 = bioData[1];
-                console.log(hr, sp02);
 
                 if (!drowsyStatus) {
                   isDrowsy(hr, sp02);
@@ -131,39 +135,45 @@ export default function App() {
               while (true) {
                 await new Promise(r => setTimeout(r, 4000));
 
+                let twomins = 0;
                 if (drowsyStatus && !ing) {
                   ing = true;
-
                   genRandSec();
 
-                  await vibeChar
-                    .writeWithResponse(encodeBleString('1'))
-                    .then(() => {
-                      console.log('2. GAME : VibeAction');
-                    });
-
-                  RNSoundLevel.start();
-                  setRec(true);
-                  const startTime = new Date();
+                  RNSoundLevel.start().then(async () => {
+                    await vibeChar.writeWithResponse(encodeBleString('1'));
+                    startTime = new Date();
+                    console.log('2. GAME : VibeAction');
+                  });
 
                   RNSoundLevel.onNewFrame = async data => {
-                    if (data.rawValue >= 4000) {
+                    console.log(twomins);
+                    if (++twomins == 9) {
+                      console.log('3. GAME : Timeout');
                       await new Promise(r => setTimeout(r, 100)).then(
                         async () => {
-                          const duringTime = new Date() - startTime;
                           RNSoundLevel.stop();
-                          //await new Promise(r => setTimeout(r, 2000));
-                          isResponseFast(duringTime, hr, sp02);
-                          console.log('3. GAME : Sound', duringTime, hr, sp02);
-                          SoundPlayer.playSoundFile(audioName, 'mp3');
                           ing = false;
-                          drowsyStatus = false;
-                          setRec(false);
                         },
                       );
                     }
+
+                    if (data.rawValue >= 4000) {
+                      const duringTime = new Date() - startTime;
+                      await new Promise(r => setTimeout(r, 100)).then(
+                        async () => {
+                          RNSoundLevel.stop();
+                          ing = false;
+                        },
+                      );
+                      isResponseFast(duringTime, hr, sp02).then(() => {
+                        SoundPlayer.playSoundFile(audioName, 'mp3');
+                      });
+                      console.log('3. GAME : Sound', duringTime);
+                    }
                   };
                 } //if
+                setRec(false);
               } //while
             }
           });
@@ -177,20 +187,20 @@ export default function App() {
   return (
     <View
       style={{
-        marginTop: 100,
+        marginTop: 250,
         marginLeft: 50,
-        borderRadius: 40,
-        backgroundColor: '#9dbad1',
         width: 300,
         height: 100,
         alignItems: 'center',
         justifyContent: 'center',
       }}>
-      {rec ? (
-        <Text style={{fontSize: 50}}>!!!!소리 질러!!!!</Text>
-      ) : (
-        <Text style={{fontSize: 20}}>진동이 울리면 '와!'를 외쳐주세요</Text>
-      )}
+      {reload ? (
+        <Text style={{fontSize: 30}}>
+          {ready
+            ? '진동이 울리면, "와"를 외쳐주세요'
+            : '연결중 입니다. \n 잠시만 기다려주세요.'}
+        </Text>
+      ) : null}
     </View>
   );
 }
