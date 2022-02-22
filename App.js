@@ -20,12 +20,14 @@ let audioName = 'wakeup';
 let ing = false;
 
 //const serverUrl = 'https://demo.thingsboard.io/api/v1/5HQeXnFXZ3IbSCXO3EyM/rpc';
+//const serverStartUrl = 'https://demo.thingsboard.io/api/v1/5HQeXnFXZ3IbSCXO3EyM/telemetry';
 const serverUrl = 'http://192.168.2.208:8080/api/v1/UXdKE72SZUOxvFinh9c0/rpc';
+const serverStartUrl =
+  'http://192.168.2.208:8080/api/v1/UXdKE72SZUOxvFinh9c0/telemetry';
 
 const manager = new BleManager();
 
 export default function App() {
-  const [rec, setRec] = useState(false);
   const [ready, setReady] = useState(false);
   const [reload, setReload] = useState(false);
 
@@ -43,56 +45,57 @@ export default function App() {
     return Base64.encode(value);
   };
 
-  async function isDrowsy(hr, sp02) {
+  async function isDrowsy(url, hr, sp02) {
     //return true/false
     await axios({
-      url: serverUrl,
+      url,
       method: 'post',
       header: {'Content-Type': 'application/json'},
       data: {method: 'isDrowsy', params: [hr, sp02]},
     }).then(response => {
       drowsyStatus = response.data;
-      console.log('SEND : response drowsy status :', drowsyStatus);
+      //drowsyStatus = true;
+      console.log('====> SEND : response drowsy status :', drowsyStatus);
     });
   }
 
-  async function genRandSec() {
+  async function genRandSec(url) {
     //return sec
     await axios({
-      url: serverUrl,
+      url,
       method: 'post',
       header: {'Content-Type': 'application/json'},
       data: {method: 'genRandSec', params: {}},
     }).then(async response => {
       sleepSec = response.data;
-      console.log('1. GAME : response sec :', sleepSec);
+      console.log('> 1. GAME : response sec :', sleepSec);
       await new Promise(r => setTimeout(r, sleepSec * 1000));
     });
   }
 
-  //변수순서 바꾸기 필수
-  async function isResponseFast(time, hr, sp02) {
+  async function isResponseFast(url, time, hr, sp02) {
     //return string=filename
     await axios({
-      url: serverUrl,
+      url,
       method: 'post',
       header: {'Content-Type': 'application/json'},
       data: {method: 'isResponseFast', params: [hr, sp02, time]},
     }).then(response => {
       audioName = response.data;
-      console.log('4. GAME : response isResponseFast :', audioName);
     });
   }
 
   useEffect(() => {
-    Alert.alert('주의', 'Bluetooth와 GPS를 키고, 아래 확인 버튼을 눌러주세요', [
-      {text: '확인', onPress: () => setReload(true)},
-    ]);
+    Alert.alert(
+      'Warning',
+      'Turn on Bluetooth and GPS \nThen click the OK button below',
+      [{text: 'OK', onPress: () => setReload(true)}],
+    );
   }, []);
 
   useEffect(() => {
     if (reload) {
-      //console.log('start');
+      console.log('start');
       const subscription = manager.onStateChange(state => {
         if (state === 'PoweredOn') {
           manager.startDeviceScan(null, null, async (error, device) => {
@@ -128,28 +131,29 @@ export default function App() {
                 sp02 = bioData[1];
 
                 if (!drowsyStatus) {
-                  isDrowsy(hr, sp02);
+                  isDrowsy(serverUrl, hr, sp02);
                 }
               }); //bio
 
-              while (true) {
+              while (1) {
                 await new Promise(r => setTimeout(r, 4000));
 
                 let twomins = 0;
                 if (drowsyStatus && !ing) {
+                  console.log('====> GAME START');
                   ing = true;
-                  genRandSec();
+                  genRandSec(serverUrl);
 
                   RNSoundLevel.start().then(async () => {
                     await vibeChar.writeWithResponse(encodeBleString('1'));
                     startTime = new Date();
-                    console.log('2. GAME : VibeAction');
+                    console.log('> 2. GAME : VibeAction');
                   });
 
                   RNSoundLevel.onNewFrame = async data => {
-                    console.log(twomins);
+                    //console.log(twomins);
                     if (++twomins == 9) {
-                      console.log('3. GAME : Timeout');
+                      console.log('> 3. GAME : Timeout');
                       await new Promise(r => setTimeout(r, 100)).then(
                         async () => {
                           RNSoundLevel.stop();
@@ -166,14 +170,16 @@ export default function App() {
                           ing = false;
                         },
                       );
-                      isResponseFast(duringTime, hr, sp02).then(() => {
-                        SoundPlayer.playSoundFile(audioName, 'mp3');
-                      });
-                      console.log('3. GAME : Sound', duringTime);
+                      isResponseFast(serverUrl, duringTime, hr, sp02).then(
+                        () => {
+                          drowsyStatus = false;
+                          SoundPlayer.playSoundFile(audioName, 'mp3');
+                          console.log('> 3. GAME : Result', audioName);
+                        },
+                      );
                     }
                   };
                 } //if
-                setRec(false);
               } //while
             }
           });
@@ -187,7 +193,7 @@ export default function App() {
   return (
     <View
       style={{
-        marginTop: 250,
+        marginTop: 300,
         marginLeft: 50,
         width: 300,
         height: 100,
@@ -196,9 +202,7 @@ export default function App() {
       }}>
       {reload ? (
         <Text style={{fontSize: 30}}>
-          {ready
-            ? '진동이 울리면, "와"를 외쳐주세요'
-            : '연결중 입니다. \n 잠시만 기다려주세요.'}
+          {ready ? 'Shout when it vibrates' : 'Connecting... \n Please Wait.'}
         </Text>
       ) : null}
     </View>
