@@ -31,7 +31,7 @@ export async function isResponseFast(url, hr, sp02, time) {
 }
 
 export async function isDrowsyToInit(url, hr, spo2) {
-  //return true/false
+  //return true / false;
   return await axios({
     url,
     method: 'post',

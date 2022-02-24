@@ -6,19 +6,28 @@ import RNSoundLevel from 'react-native-sound-level';
 import SoundPlayer from 'react-native-sound-player';
 
 import {encodeBleString, decodeBleString} from './base64';
-import {isDrowsy, genRandSec, isResponseFast} from './server';
+import {
+  isDrowsy,
+  genRandSec,
+  isResponseFast,
+  isDrowsyToInit,
+  isResponseFastToInit,
+} from './server';
 
 let service = null;
 let bioChar = null;
 let vibeChar = null;
 
 let hr = '0';
-let sp02 = '0';
+let spo2 = '0';
 let startTime = null;
 
-let drowsyStatus = false;
+let drowsyStatus = true;
 let audioName = 'wakeup';
-let ing = false;
+let gaming = false;
+
+let ctr = 1;
+const tentimes = 150;
 
 const serverUrl = 'http://192.168.2.208:8080/api/v1/UXdKE72SZUOxvFinh9c0/rpc';
 const serverInitUrl =
@@ -30,50 +39,130 @@ export default function App() {
   const [ready, setReady] = useState(false);
   const [reload, setReload] = useState(false);
 
-  function game() {
+  function game(vibeChar) {
     let twomins = 0;
-    if (drowsyStatus && !ing) {
-      ing = true;
-
+    if (drowsyStatus && !gaming) {
+      gaming = true;
       console.log('====> GAME START');
 
+      //sleep for random sec
       genRandSec(serverUrl).then(async response => {
         sleepSec = response.data;
-        console.log('> 1. GAME : genRandSec');
+        console.log('> 1. GAME : Sleep Sec :', sleepSec);
         await new Promise(r => setTimeout(r, sleepSec * 1000));
       });
 
+      //start -> measure voice level
       RNSoundLevel.start().then(async () => {
         await vibeChar.writeWithResponse(encodeBleString('1'));
         startTime = new Date();
-        console.log('> 2. GAME : VibeAction');
+        console.log('> 2. GAME : Viberation');
       });
 
+      //detect over val 4000 -> stop
       RNSoundLevel.onNewFrame = async data => {
         if (twomins++ == 8) {
-          // timeout for 2 secs
-          console.log('> 3. GAME : Timeout');
+          //over 2 secs -> timeout
+          console.log('> 3. GAME : Response Time : Timeout');
           await new Promise(r => setTimeout(r, 100)).then(async () => {
             RNSoundLevel.stop();
-            ing = false;
+            gaming = false;
           });
         }
         if (data.rawValue >= 4000) {
-          // good
+          //detected
           const duringTime = new Date() - startTime;
           console.log('> 3. GAME : Response Time :', duringTime);
           await new Promise(r => setTimeout(r, 100)).then(async () => {
             RNSoundLevel.stop();
-            ing = false;
+            gaming = false;
           });
-          isResponseFast(serverUrl, hr, sp02, duringTime).then(response => {
+
+          //play sound result
+          isResponseFast(serverUrl, hr, spo2, duringTime).then(response => {
             drowsyStatus = false;
             audioName = response.data;
             SoundPlayer.playSoundFile(audioName, 'mp3');
           });
         }
-      }; //run RNSoundLevel
+      };
     }
+  }
+
+  async function initGame(vibeChar) {
+    let twomins = 0;
+
+    //sleep for random sec
+    genRandSec(serverUrl).then(async response => {
+      sleepSec = response.data;
+      console.log('> 1. GAME : Sleep Sec :', sleepSec);
+      await new Promise(r => setTimeout(r, sleepSec * 1000));
+    });
+
+    //start -> measure voice level
+    RNSoundLevel.start().then(async () => {
+      await vibeChar.writeWithResponse(encodeBleString('1'));
+      startTime = new Date();
+      console.log('> 2. GAME : Viberation');
+      ctr++;
+    });
+
+    //detect over val 4000 -> stop
+    RNSoundLevel.onNewFrame = async data => {
+      if (twomins++ == 8) {
+        //over 2 secs -> timeout
+        console.log('> 3. GAME : Response Time : Timeout');
+        await new Promise(r => setTimeout(r, 100)).then(async () => {
+          RNSoundLevel.stop();
+        });
+      }
+      if (data.rawValue >= 4000) {
+        //detected
+        const duringTime = new Date() - startTime;
+        console.log('> 3. GAME : Response Time :', duringTime);
+        await new Promise(r => setTimeout(r, 100)).then(async () => {
+          RNSoundLevel.stop();
+        });
+
+        //send result to server
+        isResponseFastToInit(serverInitUrl, hr, sp02, duringTime);
+      }
+    };
+  }
+
+  async function monitorBioData(bioChar) {
+    console.log('======= Start Initialize Threshold : BIO =======');
+    console.log('start time : ', new Date());
+
+    bioChar.monitor((err, bio) => {
+      if (err) {
+        console.log('err', err);
+      }
+
+      const bioData = decodeBleString(bio.value).split(':');
+      hr = bioData[0];
+      spo2 = bioData[1];
+
+      if (ctr < tentimes + 1) {
+        //Init Bio Threshold
+        isDrowsyToInit(serverInitUrl, hr, sp02).then(() => {
+          console.log(ctr, 'SEND BIO DATA');
+        });
+        if (ctr == tentimes) {
+          console.log('======= End Initialize Threshold : BIO =======');
+          console.log('end time : ', new Date());
+        }
+        ctr++;
+      } else {
+        //Send Bio Data
+        if (!drowsyStatus) {
+          isDrowsy(serverUrl, hr, spo2).then(response => {
+            drowsyStatus = response.data;
+            console.log('> SEND BIO DATA');
+          });
+        }
+      }
+    });
   }
 
   useEffect(() => {
@@ -95,7 +184,8 @@ export default function App() {
             console.log('error', error);
             return;
           }
-          if (device.name === 'CroffleBLE') {
+          //BLE connect
+          if (device.name === 'Croffle') {
             console.log('BLE > detected');
 
             manager.stopDeviceScan();
@@ -108,31 +198,29 @@ export default function App() {
             const char = await service.characteristics();
             bioChar = char[0];
             vibeChar = char[1];
-            await bioChar.read();
 
             setReady(true);
+            await bioChar.read();
 
-            bioChar.monitor((err, bio) => {
-              if (err) {
-                console.log('err', err);
-              }
-
-              //bio data 전송
-              const bioData = decodeBleString(bio.value).split(':');
-              hr = bioData[0];
-              sp02 = bioData[1];
-
-              if (!drowsyStatus) {
-                isDrowsy(serverUrl, hr, sp02).then(response => {
-                  drowsyStatus = response.data;
-                  console.log('SEND BIO DATA');
-                });
-              }
-            });
+            //monitor BioChar to get bio data
+            monitorBioData(bioChar);
 
             while (1) {
               await new Promise(r => setTimeout(r, 4000));
-              game();
+
+              if (ctr > tentimes) {
+                //Init ResponseTime Threshold
+                if (ctr === tentimes + 1)
+                  console.log(
+                    '======= Start Initialize Threshold : RES =======',
+                  );
+                await initGame(vibeChar);
+                if (ctr === tentimes + 10)
+                  console.log('======= End Initialize Threshold : RES =======');
+              } else if (ctr === tentimes + 10) {
+                //Game Start
+                game(vibeChar);
+              }
             }
           }
         });
